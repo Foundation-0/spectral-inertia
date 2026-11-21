@@ -1,6 +1,6 @@
 /-
   SpectralInertia/Basic.lean
-  Status: uncompiled_source (Lean 4 / Mathlib 4 toolchain not installed on build host).
+  Status: compiled, no sorry, no added axioms (Lean 4.35.0, Mathlib 56a0058). Scalar identities only.
 
   Core algebraic and Sum-of-Squares theorems for Tracks A, B, and C:
     1. Theorem A1: W ⊕ W⊥ block slack identity & R_opt scale-invariant two-regime envelope.
@@ -9,9 +9,8 @@
     4. Theorem A4: Weighted Quartic-Weyl 5-parameter SOS identity.
     5. Track C (T8 extension): Complete 2x2 Hermitian block determinant/trace classification.
 -/
-import Mathlib.Data.Real.Basic
+import Mathlib
 import Mathlib.Tactic.Linarith
-import Mathlib.Tactic.Nlinarith
 import Mathlib.Tactic.Ring
 import Mathlib.Tactic.FieldSimp
 
@@ -172,7 +171,7 @@ theorem weighted_quartic_weyl_upper {s p gamma1 gamma3 kappa : ℝ}
     let M := alpha ^ 2 + kappa * lam0 ^ 2
     phiHankel4 s p lam + 2 * gamma1 * lam + 2 * gamma3 * lam ^ 3 ≤ M := by
   intro beta alpha lam0 M
-  have hid := weighted_quartic_weyl_sos (ne_of_gt hp) (ne_of_gt hkap) lam
+  have hid := weighted_quartic_weyl_sos (s := s) (gamma1 := gamma1) (gamma3 := gamma3) (ne_of_gt hp) (ne_of_gt hkap) lam
   nlinarith [sq_nonneg (p * lam ^ 2 - beta * lam + alpha), sq_nonneg (lam - lam0)]
 
 /-! ### 5. Track C (T8 Extension): Complete 2x2 Hermitian Block Classification -/
