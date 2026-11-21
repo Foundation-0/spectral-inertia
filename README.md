@@ -21,22 +21,22 @@ Standalone zero-dependency Python 3 (stdlib-only, pure `fractions.Fraction` + `m
 
 ---
 
-## Quick Reproduction Commands (R4 Parity: `-B`, `-O -B`, `-B -W error`)
+## Quick Reproduction Commands (R4 Parity: `-I -B`, `-I -O -B`, `-I -B -W error`, `-I -O -B -W error`)
 
 ```bash
-cd /home/shahid/Projects/expedition/branches/spectral-inertia
-
-# Full master verification suite (unittests + 36-mutant R5 harness + all Track A/B benchmarks)
-python3 -B run_all.py
-python3 -O -B run_all.py
-python3 -B -W error run_all.py
+# From the repository root:
+# Full master verification suite (16 unittests + 41-mutant R5 harness + all Track A/B benchmarks)
+python3 -I -B run_all.py
+python3 -I -O -B run_all.py
+python3 -I -B -W error run_all.py
+python3 -I -O -B -W error run_all.py
 
 # Individual tracks & benchmarks
-python3 -B -W error -m unittest discover -s tests -v
-python3 -O -B -W error tests/run_mutation_suite.py
-python3 -B -W error -m spectral_inertia.examples.scan23848_benchmark
-python3 -B -W error -m spectral_inertia.examples.fibral_truss_box
-python3 -B -W error -m spectral_inertia.examples.bloch_and_hessian_boxes
+python3 -I -B -W error -m unittest discover -s tests -v
+python3 -I -O -B -W error tests/run_mutation_suite.py
+python3 -I -B -W error -m spectral_inertia.examples.scan23848_benchmark
+python3 -I -B -W error -m spectral_inertia.examples.fibral_truss_box
+python3 -I -B -W error -m spectral_inertia.examples.bloch_and_hessian_boxes
 ```
 
 ---
@@ -45,9 +45,6 @@ python3 -B -W error -m spectral_inertia.examples.bloch_and_hessian_boxes
 
 ```python
 from fractions import Fraction
-import sys
-sys.path.insert(0, "/home/shahid/Projects/expedition/branches/spectral-inertia")
-
 from spectral_inertia import (
     MultiPoly, PolyMatrix, RatMatrix, QInterval, QiInterval, Qi,
     certify_hermitian_box,

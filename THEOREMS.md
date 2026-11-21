@@ -1,13 +1,13 @@
 # Spectral & Inertia Theorems: Complete Rigorous Proofs & Honest Prior-Art Audit
 
-**Branch:** `/home/shahid/Projects/expedition/branches/spectral-inertia/`  
+**Repository:** `spectral-inertia`  
 **Scope:** `SEAM-01` (Track A: `R_opt` + Higher-Moment Breakthroughs), `SEAM-04` (Track B: Exact Non-Affine Parametric Complex-Hermitian Box Certifier), and `SEAM-08` (Track C: Hardened Dual-Oracle Exact $\mathbb{Q}(i)$ Certifier).
 
 ---
 
 ## 0. Honest Prior-Art & Novelty Audit (Gate 9 Discipline)
 
-Before claiming new ground, we record exactly what exists in prior art (checked directly against full texts archived in `/home/shahid/Projects/expedition/peer-web/raw/`):
+Before claiming new ground, we record exactly what exists in prior art (checked directly against full texts of `arXiv:2608.13637v2`, `arXiv:2610.08965v1`, and `siliconcordat/loom#7`):
 
 1. **Classical PSD rank–trace / Hankel–Stieltjes inequalities:**
    - For PSD $P \succeq 0$, $\operatorname{rank}(P) \ge (\operatorname{tr} P)^2 / \operatorname{tr}(P^2)$ (Cauchy–Schwarz / Rényi-2 effective rank), Hölder $\operatorname{rank}(P) \ge (\operatorname{tr} P)^{k/(k-1)} / (\operatorname{tr} P^k)^{1/(k-1)}$, and PSD Hankel moment matrices $\mathcal{H}_d(P) \succeq 0 \implies \operatorname{rank}(P) \ge v_d^\top M_d^+ v_d$ are classical.
