@@ -1,12 +1,12 @@
 # Lean 4 Formalization Status (`SpectralInertia`)
 
-## Toolchain Check (Honest Audit)
-Checked host environment on `2026-11-20`:
-- `which lean` -> not installed
-- `which lake` -> not installed
-- `which elan` -> not installed (`~/.elan/bin` absent)
+## Compile Status
 
-**Provenance / Status:** `uncompiled_source` (NOT kernel-verified locally because `lean`/`lake` is not present on this machine). No kernel-check claim is made until compiled under Lean 4 + Mathlib 4.
+**Provenance / Status:** `compiled_scalar_identities_only`. Compiled on `2026-11-20` with `lean` 4.35.0 (`eb6cafb7290e`) against Mathlib commit `56a005855ea17e0b0958f73ec801ae140b0a1679` (tag `v4.35.0`). `lean SpectralInertia/Basic.lean` exits 0 with no warnings or errors. The file has no `sorry`, no `admit` and no added axioms. `#print axioms` on every theorem and def lists only `propext`, `Classical.choice` and `Quot.sound`.
+
+**Scope of the claim:** this covers scalar identities and inequalities over `ℝ` only. None of the matrix statements (the block, Hermitian-inertia or operator-level claims in the paper) is formalized or checked here. A compiled scalar identity says nothing about the matrix statement it is used to support.
+
+The file uses `import Mathlib` because the module that holds `ℝ` has moved between Mathlib versions (`Mathlib.Data.Real.Basic` is now a deprecated alias) and `Mathlib.Tactic.Nlinarith` no longer exists. `nlinarith` is provided by `Mathlib.Tactic.Linarith`.
 
 ## What `SpectralInertia/Basic.lean` Formalizes
 1. `ropt_block_slack_identity`: The exact $W \oplus W^\perp$ algebraic slack identity underlying Theorem A1 (`R_opt` and non-commuting generalized Lemma 3.2) for any $c \ge 1$.
