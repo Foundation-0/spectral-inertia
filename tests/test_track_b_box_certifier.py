@@ -175,6 +175,51 @@ class TestTrackBBoxCertifier(unittest.TestCase):
         _req(res_2x2.status == "CERTIFIED_CONSTANT_INERTIA" and res_2x2.certified_inertia == (1, 1, 0),
              f"2x2 block-Gershgorin certification failed: {res_2x2.to_summary_dict()}")
 
+    def test_05_reject_non_hermitian_symbolic_and_interval_forgeries(self) -> None:
+        """
+        Regression test closing AUDIT-015 critical TCB exploit:
+        Non-Hermitian PolyMatrix / RatMatrix / callable interval families that happen to be
+        Hermitian at the box midpoint x=0 MUST be rejected immediately!
+        """
+        x = MultiPoly.var(1, 0)
+        one = MultiPoly.const(1, 1)
+        z = MultiPoly(1)
+        i_u = MultiPoly.const(1, Qi(Fraction(0), Fraction(1)))
+
+        # Forgery 1: PolyMatrix [[1 + i*x, 0], [0, 1]] (Hermitian at x=0, non-real diagonal elsewhere!)
+        with self.assertRaises(CertError) as ctx1:
+            PolyMatrix(1, [[one + i_u * x, z], [z, one]])
+        _req(ctx1.exception.code == "POLYMAT_DIAG_NONREAL", f"wrong code {ctx1.exception.code}")
+
+        # Forgery 2: PolyMatrix [[1, 0], [100*x, 1]] (Hermitian at x=0, asymmetric elsewhere!)
+        with self.assertRaises(CertError) as ctx2:
+            PolyMatrix(1, [[one, z], [100 * x, one]])
+        _req(ctx2.exception.code == "POLYMAT_NOT_SYMBOLICALLY_HERMITIAN", f"wrong code {ctx2.exception.code}")
+
+        # Forgery 3: RatMatrix [[(1 + i*x)/1, 0], [0, 1/1]]
+        with self.assertRaises(CertError) as ctx3:
+            RatMatrix(1, [[one + i_u * x, z], [z, one]], [[one, one], [one, one]])
+        _req(ctx3.exception.code == "RATMAT_DIAG_NONREAL", f"wrong code {ctx3.exception.code}")
+
+        # Forgery 4: RatMatrix [[1/1, 0/1], [100*x/1, 1/1]]
+        with self.assertRaises(CertError) as ctx4:
+            RatMatrix(1, [[one, z], [100 * x, one]], [[one, one], [one, one]])
+        _req(ctx4.exception.code == "RATMAT_NOT_SYMBOLICALLY_HERMITIAN", f"wrong code {ctx4.exception.code}")
+
+        # Forgery 5: Callable eval_box_fn returning non-Hermitian interval enclosure with Hermitian midpoint!
+        from spectral_inertia.box_certifier import QiInterval
+        from spectral_inertia.exact_qi import ONE, ZERO
+        with self.assertRaises(CertError) as ctx5:
+            certify_hermitian_box(
+                lambda pt: [[ONE, ZERO], [ZERO, ONE]],
+                [(Fraction(-1, 2), Fraction(1, 2))],
+                eval_box_fn=lambda b: [
+                    [QiInterval(QInterval.pt(1), QInterval(Fraction(-1, 2), Fraction(1, 2))), QiInterval.pt(0)],
+                    [QiInterval.pt(0), QiInterval.pt(1)],
+                ],
+            )
+        _req(ctx5.exception.code == "INTERVAL_MAT_DIAG_NONREAL", f"wrong code {ctx5.exception.code}")
+
 
 if __name__ == "__main__":
     unittest.main()

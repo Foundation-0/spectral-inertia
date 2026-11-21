@@ -37,11 +37,13 @@ def load_mutated_package(file_name: str, target_snippet: str, replacement_snippe
     src_exact = (PKG_DIR / "exact_qi.py").read_text(encoding="utf-8")
     src_dual = (PKG_DIR / "dual_oracle.py").read_text(encoding="utf-8")
     src_hm = (PKG_DIR / "higher_moments.py").read_text(encoding="utf-8")
+    src_box = (PKG_DIR / "box_certifier.py").read_text(encoding="utf-8")
 
     sources = {
         "exact_qi.py": src_exact,
         "dual_oracle.py": src_dual,
         "higher_moments.py": src_hm,
+        "box_certifier.py": src_box,
     }
     require(file_name in sources, f"unknown module file {file_name}")
     orig = sources[file_name]
@@ -52,11 +54,23 @@ def load_mutated_package(file_name: str, target_snippet: str, replacement_snippe
     pkg_name = "_mut_spectral_inertia"
     pkg_mod = types.ModuleType(pkg_name)
     pkg_mod.__path__ = []  # type: ignore[attr-defined]
-    saved = {k: sys.modules.get(k) for k in (pkg_name, f"{pkg_name}.exact_qi", f"{pkg_name}.dual_oracle", f"{pkg_name}.higher_moments")}
+    mod_names = (
+        pkg_name,
+        f"{pkg_name}.exact_qi",
+        f"{pkg_name}.higher_moments",
+        f"{pkg_name}.dual_oracle",
+        f"{pkg_name}.box_certifier",
+    )
+    saved = {k: sys.modules.get(k) for k in mod_names}
     try:
         sys.modules[pkg_name] = pkg_mod
         loaded: dict[str, types.ModuleType] = {}
-        for mod_short, fname in [("exact_qi", "exact_qi.py"), ("higher_moments", "higher_moments.py"), ("dual_oracle", "dual_oracle.py")]:
+        for mod_short, fname in [
+            ("exact_qi", "exact_qi.py"),
+            ("higher_moments", "higher_moments.py"),
+            ("dual_oracle", "dual_oracle.py"),
+            ("box_certifier", "box_certifier.py"),
+        ]:
             full_name = f"{pkg_name}.{mod_short}"
             m = types.ModuleType(full_name)
             m.__package__ = pkg_name
@@ -150,7 +164,7 @@ def run_all_mutants() -> dict[str, Any]:
         "exact_qi.py",
         '    r"\\A(?:0|-?[1-9][0-9]*)(?:/[1-9][0-9]*)?\\Z",\n    re.ASCII,',
         '    r"\\A(?:0|-?[1-9]\\d*)(?:/[1-9]\\d*)?\\Z",\n    0,',
-        lambda m: m["exact_qi"].parse_strict_fraction("1\u0660/2\u0660"),
+        lambda m: m["exact_qi"].parse_strict_fraction("1\u0661/2\u0660"),
     )
     add_reject_mutant(
         "M05", "R3 digit-length DoS guard removed",
@@ -470,6 +484,64 @@ def run_all_mutants() -> dict[str, Any]:
         lambda m: m["higher_moments"].certify_weighted_quartic_weyl(
             S_sample, Fraction(-10), Fraction(0), 1, s=Fraction(1), p=Fraction(1), gamma1=Fraction(-1), gamma3=Fraction(0), kappa=Fraction(1)
         ),
+    )
+
+    # --- Group 6: Track B Symbolic Hermitianity Guards (AUDIT-015) & Canonical Lowest-Terms R3 Guard (5 mutants) ---
+    def _build_poly_helpers(m: dict[str, types.ModuleType]):
+        bc = m["box_certifier"]
+        eq = m["exact_qi"]
+        x = bc.MultiPoly.var(1, 0)
+        one = bc.MultiPoly.const(1, 1)
+        z = bc.MultiPoly(1)
+        i_u = bc.MultiPoly.const(1, eq.Qi(Fraction(0), Fraction(1)))
+        return bc, x, one, z, i_u
+
+    add_reject_mutant(
+        "M37", "AUDIT-015: PolyMatrix symbolic real-diagonal guard removed ([[1+ix,0],[0,1]])",
+        "box_certifier.py",
+        '                if coef.im != 0:\n                    raise CertError(\n                        "POLYMAT_DIAG_NONREAL",',
+        '                if False:\n                    raise CertError(\n                        "POLYMAT_DIAG_NONREAL",',
+        lambda m: (lambda bc, x, one, z, i_u: bc.certify_hermitian_box(
+            bc.PolyMatrix(1, [[one + i_u * x, z], [z, one]]),
+            [(Fraction(-1, 2), Fraction(1, 2))],
+        ))(*_build_poly_helpers(m)),
+    )
+    add_reject_mutant(
+        "M38", "AUDIT-015: PolyMatrix symbolic off-diagonal conjugate guard removed ([[1,0],[100x,1]])",
+        "box_certifier.py",
+        '                if self.entries[i][j].terms != self.entries[j][i].conj().terms:\n                    raise CertError(\n                        "POLYMAT_NOT_SYMBOLICALLY_HERMITIAN",',
+        '                if False:\n                    raise CertError(\n                        "POLYMAT_NOT_SYMBOLICALLY_HERMITIAN",',
+        lambda m: (lambda bc, x, one, z, i_u: bc.certify_hermitian_box(
+            bc.PolyMatrix(1, [[one, z], [100 * x, one]]),
+            [(Fraction(-1, 2), Fraction(1, 2))],
+        ))(*_build_poly_helpers(m)),
+    )
+    add_reject_mutant(
+        "M39", "AUDIT-015: RatMatrix symbolic real-diagonal guard removed ([[(1+ix)/1,0],[0,1/1]])",
+        "box_certifier.py",
+        '                if coef.im != 0:\n                    raise CertError(\n                        "RATMAT_DIAG_NONREAL",',
+        '                if False:\n                    raise CertError(\n                        "RATMAT_DIAG_NONREAL",',
+        lambda m: (lambda bc, x, one, z, i_u: bc.certify_hermitian_box(
+            bc.RatMatrix(1, [[one + i_u * x, z], [z, one]], [[one, one], [one, one]]),
+            [(Fraction(-1, 2), Fraction(1, 2))],
+        ))(*_build_poly_helpers(m)),
+    )
+    add_reject_mutant(
+        "M40", "AUDIT-015: RatMatrix symbolic off-diagonal conjugate guard removed ([[1/1,0],[100x/1,1/1]])",
+        "box_certifier.py",
+        '                if lhs.terms != rhs.terms:\n                    raise CertError(\n                        "RATMAT_NOT_SYMBOLICALLY_HERMITIAN",',
+        '                if False:\n                    raise CertError(\n                        "RATMAT_NOT_SYMBOLICALLY_HERMITIAN",',
+        lambda m: (lambda bc, x, one, z, i_u: bc.certify_hermitian_box(
+            bc.RatMatrix(1, [[one, z], [100 * x, one]], [[one, one], [one, one]]),
+            [(Fraction(-1, 2), Fraction(1, 2))],
+        ))(*_build_poly_helpers(m)),
+    )
+    add_reject_mutant(
+        "M41", "AUDIT-016 R3 hygiene: lowest-terms canonical rational guard removed (rejects 2/4, 3/1, 0/5)",
+        "exact_qi.py",
+        '        if den_i == 1 or math.gcd(abs(num_i), den_i) != 1:\n            raise CertError("NON_CANONICAL_RATIONAL", f"rational string not in lowest terms: {val!r}")',
+        '        if False:\n            raise CertError("NON_CANONICAL_RATIONAL", f"rational string not in lowest terms: {val!r}")',
+        lambda m: m["exact_qi"].parse_strict_fraction("2/4"),
     )
 
     results = []

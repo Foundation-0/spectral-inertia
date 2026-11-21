@@ -27,18 +27,14 @@ from ..dual_oracle import oracle_faddeev_descartes_sturm, produce_c_certificate,
 from ..exact_qi import CMat, Qi, ZERO, frac_to_str, require_cert
 
 
-def truss_equilibrium_hessian_raw(L1: Fraction, L2: Fraction) -> CMat:
+def truss_equilibrium_hessian_congruent(L1: Fraction, L2: Fraction) -> CMat:
     """
-    Exact rational raw Hessian H(L1, L2) at the stable/critical equilibrium of the 2-bar truss.
-    For L1 + L2 <= 2: on-line equilibrium y = 0, H = diag((L1+L2)/(L1*L2), (L1+L2)/(L1*L2)*(1 - (L1+L2)/2)).
-    For L1 + L2 > 2 (|L1 - L2| < 2): off-line equilibrium; returns the rational congruent matrix
-      [[A, B], [B, C]] = diag(1, 1/y) H_raw diag(1, 1/y) when congruent=True,
-      or exact H_raw only where y is rational. Here we use the continuous rational-equivalent
-      scaled Hessian H_scaled(L1, L2) which has the EXACT SAME inertia as H_raw everywhere!
-    Wait: for L1 + L2 > 2, H_raw = [[A, B*y], [B*y, C*y^2]] has
-      det(H_raw) = (A*C - B^2)*y^2 = (4 / (L1^3 L2^3)) * y^2 > 0, trace > 0!
-      Wait: we can return the EXACT continuous raw Hessian in interval arithmetic over any box
-      because y in [sqrt_lo(y^2), sqrt_hi(y^2)] is exact via math.isqrt!
+    Exact rational equilibrium Hessian in inertia-preserving coordinates:
+      - On-line regime (L1 + L2 <= 2, y = 0): exact raw Hessian
+          H = diag((L1+L2)/(L1*L2), (L1+L2)/(L1*L2)*(1 - (L1+L2)/2)).
+      - Off-line regime (L1 + L2 > 2, |L1 - L2| < 2, y^2 > 0): exact rational congruent matrix
+          diag(1, 1/y) * H_raw * diag(1, 1/y) = [[A, B], [B, C]],
+        which has IDENTICAL Sylvester inertia to H_raw by Sylvester's law of inertia.
     """
     if L1 + L2 <= 2:
         a = (L1 + L2) / (L1 * L2)
@@ -51,20 +47,24 @@ def truss_equilibrium_hessian_raw(L1: Fraction, L2: Fraction) -> CMat:
     return [[Qi(A), Qi(B)], [Qi(B), Qi(C)]]
 
 
+# Backward-compatible alias
+truss_equilibrium_hessian_raw = truss_equilibrium_hessian_congruent
+
+
 def truss_interval_box(box: Box) -> IntervalCMat:
     """
-    Exact QInterval enclosure of the equilibrium Hessian over box [L1_lo, L1_hi] x [L2_lo, L2_hi].
-    - Strictly inside L1 + L2 < 2: exact interval enclosure of on-line diag Hessian.
-    - Strictly inside L1 + L2 > 2: exact interval enclosure of congruent [[A, B], [B, C]]
-      (valid because y^2 > 0 uniformly on the sub-box, so diag(1, 1/y) is invertible everywhere!).
-    - Straddling L1 + L2 = 2: returns conservative hull including the singular entry 0 on (1,1),
-      preventing false certification across the bifurcation manifold!
+    Exact coordinate-consistent QInterval enclosure over box [L1_lo, L1_hi] x [L2_lo, L2_hi]:
+      - Strictly inside L1 + L2 < 2: exact interval enclosure of on-line diag Hessian.
+      - Strictly inside L1 + L2 > 2: exact interval enclosure of congruent [[A, B], [B, C]]
+        (valid because y^2 > 0 uniformly on the sub-box, so diag(1, 1/y) is nonsingular everywhere).
+      - Straddling L1 + L2 = 2: raises CertError("REGIME_BOUNDARY_SUBDIVIDE", ...) so the box
+        certifier NEVER mixes on-line and congruent coordinates and MUST subdivide / probe the
+        bifurcation line L1 + L2 = 2!
     """
     L1, L2 = box[0], box[1]
     s = L1 + L2
 
     if s.hi < 2:
-        # Purely on-line regime: H = diag((L1+L2)/(L1*L2), (L1+L2)/(L1*L2)*(1 - (L1+L2)/2))
         a_iv = (L1 + L2) / (L1 * L2)
         c_iv = a_iv * (QInterval.pt(1) - (L1 + L2) / 2)
         return [
@@ -73,9 +73,7 @@ def truss_interval_box(box: Box) -> IntervalCMat:
         ]
 
     if s.lo > 2:
-        # Purely off-line regime: verify y^2 > 0 everywhere on box!
         diff = L1 - L2
-        # y^2 = ((L1+L2)^2 - 4)*(4 - (L1-L2)^2) / 16
         y2_iv = (s.sqr() - 4) * (QInterval.pt(4) - diff.sqr()) / 16
         require_cert(y2_iv.lo > 0, "TRUSS_Y2_NONPOS", "off-line box must keep y^2 > 0")
         x_iv = (L1.sqr() - L2.sqr()) / 4
@@ -89,28 +87,8 @@ def truss_interval_box(box: Box) -> IntervalCMat:
             [QiInterval(B_iv), QiInterval(C_iv)],
         ]
 
-    # Straddling regime L1 + L2 == 2 lies inside box!
-    # Raw Hessian H_raw is continuous across L1+L2=2 with H_raw[1][1] = 0 on L1+L2=2.
-    # Compute sound outer hull of both branches in raw coordinates (where H_raw[1][1] contains 0).
-    a_on = (L1 + L2) / (L1 * L2)
-    c_on = a_on * (QInterval.pt(1) - (L1 + L2) / 2)
-    x_iv = (L1.sqr() - L2.sqr()) / 4
-    L1_3 = L1.pow_int(3)
-    L2_3 = L2.pow_int(3)
-    A_off = (x_iv + 1).sqr() / L1_3 + (x_iv - 1).sqr() / L2_3
-    B_off = (x_iv + 1) / L1_3 + (x_iv - 1) / L2_3
-    C_off = QInterval.pt(1) / L1_3 + QInterval.pt(1) / L2_3
-    diff = L1 - L2
-    y2_hi = max(Fraction(0), ((s.sqr() - 4) * (QInterval.pt(4) - diff.sqr()) / 16).hi)
-    y2_iv = QInterval(Fraction(0), y2_hi)
-    y_iv = y2_iv.sqrt()
-    H00 = a_on.hull(A_off)
-    H01 = QInterval.pt(0).hull(B_off * y_iv)
-    H11 = c_on.hull(C_off * y2_iv).hull(QInterval.pt(0))
-    return [
-        [QiInterval(H00), QiInterval(H01)],
-        [QiInterval(H01), QiInterval(H11)],
-    ]
+    from ..exact_qi import CertError
+    raise CertError("REGIME_BOUNDARY_SUBDIVIDE", "box straddles bifurcation line L1 + L2 = 2; subdivide")
 
 
 def truss_singular_probe(sub: Box) -> list[tuple[Fraction, ...]]:

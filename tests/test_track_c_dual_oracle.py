@@ -71,6 +71,11 @@ class TestTrackCDualOracle(unittest.TestCase):
             "1/0",
             "1/02",
             "1/-2",
+            "0/1",
+            "0/5",
+            "3/1",
+            "2/4",
+            "-4/6",
             "\u0661/\u0662",
             "1" * 4001,
         ]
@@ -78,9 +83,9 @@ class TestTrackCDualOracle(unittest.TestCase):
             with self.assertRaises(CertError, msg=f"failed to reject bad fraction {bad!r}"):
                 parse_strict_fraction(bad)
 
-        # Valid fractions
+        # Valid canonical fractions
         _req(parse_strict_fraction("0") == 0, "0 failed")
-        _req(parse_strict_fraction("0/1") == 0, "0/1 failed")
+        _req(parse_strict_fraction("1/2") == Fraction(1, 2), "1/2 failed")
         _req(parse_strict_fraction("-13/7") == Fraction(-13, 7), "-13/7 failed")
         _req(parse_strict_fraction(42) == Fraction(42), "int 42 failed")
 

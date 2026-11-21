@@ -13,10 +13,10 @@ Standalone zero-dependency Python 3 (stdlib-only, pure `fractions.Fraction` + `m
      1. `aska-physical/fibral-rigidity#5` 2-bar truss box `[7/10, 13/10] x [9/10, 15/10]` (replays all 5 `docs/10` §4.2 exact matrices, isolates exact dual-oracle-verified `(1, 0, 1)` singular witness `(9/10, 11/10)`, certifies uniform PD `(2, 0, 0)` on taut & buckled sub-boxes).
      2. Complex Hermitian 2D Bloch dynamical matrix box (Weierstrass rational map $e^{i q_k} = \frac{1-t_k^2+2it_k}{1+t_k^2}$: certifies uniform PD `(2,0,0)` on gapped box AND catches interior Dirac zero mode `(0,0)` with inertia `(1,0,1)` despite all 4 corners being strictly PD `(2,0,0)`!).
      3. Non-affine $3\times 3$ indefinite Morse-index Hessian box (certifies uniform saddle `(2,1,0)` AND certifies `INERTIA_CHANGE_DETECTED` across an irrational bifurcation curve `(2,1,0) <-> (3,0,0)`).
-3. **Track C (`SEAM-08` — Hardened Dual-Oracle Exact $\mathbb{Q}(i)$ Certifier + 36-Mutant Suite + Lean 4 Source):**
-   - Closes all 6 `AUDIT-001` exploits + all `loom#7` guards + full R1–R5 conformance (`parse_strict_fraction`, `parse_strict_json`, $P \succeq 0$ second congruence witness).
+3. **Track C (`SEAM-08` — Hardened Dual-Oracle Exact $\mathbb{Q}(i)$ Certifier + 41-Mutant Suite + Lean 4 Source):**
+   - Closes all 6 `AUDIT-001` exploits + all `loom#7` guards + Track B symbolic Hermitianity guards (`AUDIT-015`) + full R1–R5 canonical lowest-terms conformance (`parse_strict_fraction`, `parse_strict_json`, $P \succeq 0$ second congruence witness).
    - Pairs Oracle 1 (Sylvester congruence $C M C^* = D$ and `loom#7` $P M P^* = L D L^*$) with zero-shared-code Oracle 2 (Faddeev–LeVerrier + Cayley–Hamilton + exact Descartes + exact Sturm square-free sequence).
-   - **36/36 refusal-site & check-deletion mutants KILLED (0 survivors)** under both `python3 -B` and `python3 -O -B`.
+   - **41/41 refusal-site & check-deletion mutants KILLED (0 survivors)** under both `python3 -B` and `python3 -O -B`.
    - Lean 4 formalization of core algebraic & SOS theorems in [`lean/SpectralInertia/Basic.lean`](lean/SpectralInertia/Basic.lean) (honestly tagged `uncompiled_source` because `lean`/`lake`/`elan` are not installed on this host).
 
 ---

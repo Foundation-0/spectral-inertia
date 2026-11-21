@@ -124,7 +124,7 @@ theorem noise_annihilating_quartic_le_one {x0 tau : ℝ} (hx0 : 0 < x0) (htau : 
   have hd_pos : 0 < d := by dsimp [d]; linarith
   have hrem : 0 ≤ x0 ^ 2 * (2 * x0 ^ 2 + 4 * x0 * tau + tau ^ 2) / d ^ 2 := by
     apply div_nonneg
-    · nlinarith [sq_nonneg x0, sq_nonneg tau]
+    · exact mul_nonneg (sq_nonneg x0) (by nlinarith [sq_nonneg x0, sq_nonneg tau])
     · exact sq_nonneg d
   have hbr :
       0 ≤ (lam + (x0 ^ 2 + 3 * x0 * tau + tau ^ 2) / d) ^ 2 +

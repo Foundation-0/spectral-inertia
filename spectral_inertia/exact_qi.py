@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from fractions import Fraction
 import json
+import math
 import random
 import re
 from typing import Any, Sequence
@@ -78,7 +79,11 @@ def parse_strict_fraction(val: Any, *, allow_int: bool = True, allow_fraction: b
         num_s, den_s = val.split("/")
         if len(num_s.lstrip("-")) > MAX_DIGIT_LEN or len(den_s) > MAX_DIGIT_LEN:
             raise CertError("OVERSIZED_RATIONAL_DIGITS", "digit limit exceeded")
-        return Fraction(int(num_s), int(den_s))
+        num_i = int(num_s)
+        den_i = int(den_s)
+        if den_i == 1 or math.gcd(abs(num_i), den_i) != 1:
+            raise CertError("NON_CANONICAL_RATIONAL", f"rational string not in lowest terms: {val!r}")
+        return Fraction(num_i, den_i)
     if len(val.lstrip("-")) > MAX_DIGIT_LEN:
         raise CertError("OVERSIZED_RATIONAL_DIGITS", "digit limit exceeded")
     return Fraction(int(val), 1)

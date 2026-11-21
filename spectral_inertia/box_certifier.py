@@ -434,6 +434,20 @@ class PolyMatrix:
         for i in range(n):
             for j in range(n):
                 require_cert(self.entries[i][j].n_vars == self.n_vars, "POLYMAT_NVARS", "n_vars mismatch")
+        # Symbolic Hermitianity guards across ALL real parameter values x in R^d:
+        for i in range(n):
+            for coef in self.entries[i][i].terms.values():
+                if coef.im != 0:
+                    raise CertError(
+                        "POLYMAT_DIAG_NONREAL",
+                        f"diagonal polynomial entry ({i},{i}) has nonzero imaginary coefficient",
+                    )
+            for j in range(i + 1, n):
+                if self.entries[i][j].terms != self.entries[j][i].conj().terms:
+                    raise CertError(
+                        "POLYMAT_NOT_SYMBOLICALLY_HERMITIAN",
+                        f"entries ({i},{j}) and ({j},{i}) are not symbolic Hermitian conjugates",
+                    )
 
     @property
     def dim(self) -> int:
@@ -504,6 +518,33 @@ class RatMatrix:
         require_cert(n > 0 and len(self.den) == n, "RATMAT_DIM", "num/den size mismatch")
         require_cert(all(len(r) == n for r in self.num) and all(len(r) == n for r in self.den),
                      "RATMAT_NOT_SQUARE", "must be square")
+        for i in range(n):
+            for j in range(n):
+                require_cert(
+                    self.num[i][j].n_vars == self.n_vars and self.den[i][j].n_vars == self.n_vars,
+                    "RATMAT_NVARS",
+                    "n_vars mismatch",
+                )
+                require_cert(len(self.den[i][j].terms) > 0, "RATMAT_ZERO_DEN", f"identically zero denominator at ({i},{j})")
+                for coef in self.den[i][j].terms.values():
+                    if coef.im != 0:
+                        raise CertError("RATMAT_DEN_NONREAL", f"denominator at ({i},{j}) must be real polynomial")
+        # Symbolic Hermitianity guards across ALL real parameter values x in R^d:
+        for i in range(n):
+            for coef in self.num[i][i].terms.values():
+                if coef.im != 0:
+                    raise CertError(
+                        "RATMAT_DIAG_NONREAL",
+                        f"diagonal rational entry ({i},{i}) has nonzero imaginary numerator coefficient",
+                    )
+            for j in range(i + 1, n):
+                lhs = self.num[i][j] * self.den[j][i]
+                rhs = self.num[j][i].conj() * self.den[i][j]
+                if lhs.terms != rhs.terms:
+                    raise CertError(
+                        "RATMAT_NOT_SYMBOLICALLY_HERMITIAN",
+                        f"rational entries ({i},{j}) and ({j},{i}) are not symbolic Hermitian conjugates",
+                    )
 
     @property
     def dim(self) -> int:
@@ -552,6 +593,21 @@ class RatMatrix:
 # ==============================================================================
 # 3. CONGRUENT BLOCK-GERSHGORIN UNIFORM INERTIA CERTIFIER (THEOREM B2)
 # ==============================================================================
+def _require_interval_hermitian(M_iv: IntervalCMat) -> None:
+    """Defense-in-depth guard: verify an interval matrix enclosure is Hermitian."""
+    n = len(M_iv)
+    require_cert(n > 0 and all(len(r) == n for r in M_iv), "INTERVAL_MAT_NOT_SQUARE", "interval matrix must be square")
+    for i in range(n):
+        if M_iv[i][i].im.lo != 0 or M_iv[i][i].im.hi != 0:
+            raise CertError("INTERVAL_MAT_DIAG_NONREAL", f"interval matrix diagonal ({i},{i}) has nonzero imag interval")
+        for j in range(i + 1, n):
+            if M_iv[i][j] != M_iv[j][i].conj():
+                raise CertError(
+                    "INTERVAL_MAT_NOT_HERMITIAN",
+                    f"interval matrix entries ({i},{j}) and ({j},{i}) are not conjugate intervals",
+                )
+
+
 def _interval_congruence(C: CMat, dM: IntervalCMat) -> IntervalCMat:
     """Compute exact complex interval matrix E = C * dM * C*."""
     n = len(C)
@@ -754,10 +810,12 @@ def certify_hermitian_box(
             return _interval_congruence(C, dM)
         if eval_residual_fn is not None:
             dM = eval_residual_fn(x_c, sub)
+            _require_interval_hermitian(dM)
             return _interval_congruence(C, dM)
         require_cert(eval_box_fn is not None, "MISSING_EVAL_BOX", "callable family requires eval_box_fn or eval_residual_fn")
         assert_fn = eval_box_fn
         M_iv = assert_fn(sub)
+        _require_interval_hermitian(M_iv)
         n = len(M_c)
         dM = [
             [M_iv[i][j] - QiInterval.pt(M_c[i][j]) for j in range(n)]
@@ -824,8 +882,8 @@ def certify_hermitian_box(
                         "gershgorin_margin_gt0": frac_to_str(margin),
                     })
             except CertError as exc:
-                # E.g. pole encountered on sub-box for RatMatrix -> subdivide
-                if exc.code != "RATMAT_BOX_POLE":
+                # E.g. pole or piecewise regime boundary on sub-box -> subdivide without certifying
+                if exc.code not in ("RATMAT_BOX_POLE", "REGIME_BOUNDARY_SUBDIVIDE"):
                     raise
 
         if not certified_here:
